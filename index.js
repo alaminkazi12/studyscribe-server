@@ -64,6 +64,12 @@ async function run() {
       res.send({ count });
     });
 
+    app.post("/books", async (req, res) => {
+      const book = req.body;
+      const result = await booksCollection.insertOne(book);
+      res.send(result);
+    });
+
     app.put("/book/:id", async (req, res) => {
       const id = req.params.id;
       const updatedBook = req.body;
