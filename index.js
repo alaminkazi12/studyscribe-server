@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -40,6 +40,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/book/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await booksCollection.findOne(query);
+      res.send(result);
+    });
+
     app.get("/featuredbooks", async (req, res) => {
       const cursor = featuredBooks.find();
       const result = await cursor.toArray();
@@ -55,6 +62,25 @@ async function run() {
     app.get("/bookscount", async (req, res) => {
       const count = await booksCollection.estimatedDocumentCount();
       res.send({ count });
+    });
+
+    app.put("/book/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedBook = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const book = {
+        $set: {
+          image: updatedBook.image,
+          name: updatedBook.name,
+          category: updatedBook.category,
+          author: updatedBook.author,
+          rating: updatedBook.rating,
+        },
+      };
+
+      const result = await booksCollection.updateOne(filter, book, options);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
