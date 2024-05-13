@@ -51,8 +51,9 @@ async function run() {
     app.post("/borrow-book/:id", async (req, res) => {
       const bookId = req.params.id;
 
-      const { returnDate, email, displayName } = req.body.updatedInfo;
-      console.log(returnDate, email, displayName);
+      const { returnDate, email, displayName, BorrowDate } =
+        req.body.updatedInfo;
+      console.log(returnDate, email, displayName, BorrowDate);
 
       try {
         const updateResult = await booksCollection.updateOne(
@@ -65,6 +66,7 @@ async function run() {
           bookId: new ObjectId(bookId),
           UserName: displayName,
           returnDate: returnDate,
+          BorrowDate: BorrowDate,
         });
 
         res.send(result);
@@ -72,6 +74,27 @@ async function run() {
         console.log(error);
         res.status(500).json({ message: "Internal server error" });
       }
+    });
+
+    app.put("/retun-book/:id", async (req, res) => {
+      const bookId = req.params.id;
+      await booksCollection.updateOne(
+        { _id: new ObjectId(bookId) },
+        { $inc: { quantity: 1 } }
+      );
+
+      // delte the returen book data
+      const query = { bookId: new ObjectId(bookId) };
+      const result = await borrowedBooksCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.get("/borrow-book/", async (req, res) => {
+      const email = req.query.email;
+      const query = { userEmail: email };
+      const result = await borrowedBooksCollection.find(query).toArray();
+      res.send(result);
+      console.log(email);
     });
 
     app.get("/featuredbooks", async (req, res) => {
