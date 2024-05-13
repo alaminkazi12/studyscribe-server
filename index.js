@@ -1,13 +1,21 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.r90hnej.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -20,6 +28,30 @@ const client = new MongoClient(uri, {
   },
 });
 
+// middlewares
+const logger = async (req, res, next) => {
+  console.log("called", req.host, req.method, req.url);
+  next();
+};
+
+const verifyToken = async (req, res, next) => {
+  const toekn = req.cookies?.token;
+  console.log("Value of the middleware", toekn);
+  if (!toekn) {
+    return res.status(401).send({ message: "not authorized" });
+  }
+  jwt.verify(toekn, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    // err
+    if (err) {
+      console.log(err);
+      return res.status(401).send({ message: "not authorized" });
+    }
+    console.log("value in the token", decoded);
+    req.user = decoded;
+  });
+  next();
+};
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -29,6 +61,30 @@ async function run() {
     const categories = studyscribeDb.collection("categories");
     const featuredBooks = studyscribeDb.collection("featuredbooks");
     const borrowedBooksCollection = studyscribeDb.collection("borrowedBooks");
+
+    // auth realted api
+
+    app.post("/jwt", logger, async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1hr",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+        })
+        .send({ success: true });
+    });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      console.log("Logged out", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
+    // service releted api
 
     app.get("/books", async (req, res) => {
       const { page, size } = req.query;
@@ -89,8 +145,16 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/borrow-book/", async (req, res) => {
+    app.get("/borrow-book/", logger, verifyToken, async (req, res) => {
       const email = req.query.email;
+      console.log(email);
+      console.log("cookies", req.cookies);
+      console.log("user info", req.user);
+
+      if (req.user.email !== email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+
       const query = { userEmail: email };
       const result = await borrowedBooksCollection.find(query).toArray();
       res.send(result);
