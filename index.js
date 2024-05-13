@@ -28,6 +28,7 @@ async function run() {
     const booksCollection = studyscribeDb.collection("books");
     const categories = studyscribeDb.collection("categories");
     const featuredBooks = studyscribeDb.collection("featuredbooks");
+    const borrowedBooksCollection = studyscribeDb.collection("borrowedBooks");
 
     app.get("/books", async (req, res) => {
       const { page, size } = req.query;
@@ -47,6 +48,32 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/borrow-book/:id", async (req, res) => {
+      const bookId = req.params.id;
+
+      const { returnDate, email, displayName } = req.body.updatedInfo;
+      console.log(returnDate, email, displayName);
+
+      try {
+        const updateResult = await booksCollection.updateOne(
+          { _id: new ObjectId(bookId), quantity: { $gt: 0 } },
+          { $inc: { quantity: -1 } }
+        );
+
+        const result = await borrowedBooksCollection.insertOne({
+          userEmail: email,
+          bookId: new ObjectId(bookId),
+          UserName: displayName,
+          returnDate: returnDate,
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     app.get("/featuredbooks", async (req, res) => {
       const cursor = featuredBooks.find();
       const result = await cursor.toArray();
@@ -56,6 +83,20 @@ async function run() {
     app.get("/categories", async (req, res) => {
       const cursor = categories.find();
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/category/:name", async (req, res) => {
+      const name = req.params.name;
+      const query = { category_name: name };
+      const result = await categories.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/books/c/:name", async (req, res) => {
+      const name = req.params.name;
+      const query = { category: { $in: [name] } };
+      const result = await booksCollection.find(query).toArray();
       res.send(result);
     });
 
