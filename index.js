@@ -151,7 +151,7 @@ async function run() {
       console.log("cookies", req.cookies);
       console.log("user info", req.user);
 
-      if (req.user.email !== email) {
+      if (req.user?.email !== email) {
         return res.status(403).send({ message: "forbidden access" });
       }
 
