@@ -10,7 +10,11 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://studyscribe-a50b5.web.app",
+      "http://studyscribe-a50b5.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
@@ -55,7 +59,7 @@ const verifyToken = async (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const studyscribeDb = client.db("studyscribe");
     const booksCollection = studyscribeDb.collection("books");
     const categories = studyscribeDb.collection("categories");
@@ -73,7 +77,7 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false,
+          // secure: false,
         })
         .send({ success: true });
     });
