@@ -14,17 +14,18 @@ app.use(cookieParser());
 
 // app.use(
 //   cors({
-//     origin: "*",
+//     origin: "http://localhost:5173",
+//     credentials: true,
 //   })
 // );
 
 app.use(
   cors({
-    // origin: "*",
     origin: [
       "http://localhost:5173",
       "http://studyscribe-a50b5.web.app",
       "http://studyscribe-a50b5.firebaseapp.com",
+      "https://studyscribe.netlify.app",
     ],
     credentials: true,
   })
@@ -65,11 +66,11 @@ const verifyToken = async (req, res, next) => {
   next();
 };
 
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: process.env.NONE_ENV === "production" ? "none" : "strict",
-  secure: process.env.NONE_ENV === "production" ? true : false,
-};
+// const cookieOptions = {
+//   httpOnly: true,
+//   sameSite: process.env.NONE_ENV === "production" ? "none" : "strict",
+//   secure: process.env.NONE_ENV === "production" ? true : false,
+// };
 
 async function run() {
   try {
@@ -89,15 +90,19 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1hr",
       });
-      res.cookie("token", token, cookieOptions).send({ success: true });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
     });
 
     app.post("/logout", async (req, res) => {
       const user = req.body;
       console.log("Logged out", user);
-      res
-        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
-        .send({ success: true });
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
     });
 
     // service releted api
@@ -171,7 +176,10 @@ async function run() {
         return res.status(403).send({ message: "forbidden access" });
       }
 
-      const query = { userEmail: email };
+      let query = {};
+      if (req.query?.email) {
+        query = { userEmail: email };
+      }
       const result = await borrowedBooksCollection.find(query).toArray();
       res.send(result);
       console.log(email);
